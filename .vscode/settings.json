@@ -2,7 +2,9 @@
     "files.associations": {
         "string": "cpp",
         "core": "cpp",
-        "stdvector": "cpp"
+        "stdvector": "cpp",
+        "*.tcc": "cpp"
     },
-    "C_Cpp.clang_format_style": "file"
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.clang_format_path": "/usr/bin/clang-format"
 }

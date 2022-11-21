@@ -1286,22 +1286,23 @@ bool TemplatedVocabulary<TDescriptor, F>::loadFromTextFile(
     m_nodes[nid].id = nid;
 
     int pid;
-    ssnode >> pid;
+    ssnode >> pid;  // parent id
     m_nodes[nid].parent = pid;
     m_nodes[pid].children.push_back(nid);
 
-    int nIsLeaf;
+    int nIsLeaf;  // is leaf?
     ssnode >> nIsLeaf;
 
     stringstream ssd;
-    for (int iD = 0; iD < F::L; iD++) {
+    
+    for (int iD = 0; iD < F::L; iD++) {  // F::L 应该是固定的
       string sElement;
-      ssnode >> sElement;
+      ssnode >> sElement; // 32 * 8
       ssd << sElement << " ";
     }
     F::fromString(m_nodes[nid].descriptor, ssd.str());
 
-    ssnode >> m_nodes[nid].weight;
+    ssnode >> m_nodes[nid].weight; // 最后一位是权重
 
     if (nIsLeaf > 0) {
       int wid = m_words.size();
