@@ -49,7 +49,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     else if(mSensor==RGBD)
         cout << "RGB-D" << endl;
 
-    //Check settings file
+    //Check settings file //* Examples/Monocular/TUM2.yaml
     cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
@@ -58,7 +58,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     }
 
 
-    //Load ORB Vocabulary
+    //Load ORB Vocabulary //* Vocabulary/ORBvoc.txt
     cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
 
     mpVocabulary = new ORBVocabulary();

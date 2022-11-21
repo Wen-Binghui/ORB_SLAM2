@@ -3,5 +3,6 @@
         "string": "cpp",
         "core": "cpp",
         "stdvector": "cpp"
-    }
+    },
+    "C_Cpp.clang_format_style": "file"
 }
