@@ -66,13 +66,29 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${g2o_CXX_FLAGS}")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${g2o_C_FLAGS}")
 
 # Find Eigen3
-SET(EIGEN3_INCLUDE_DIR ${G2O_EIGEN3_INCLUDE})
-FIND_PACKAGE(Eigen3 3.1.0 REQUIRED)
+# FindEigen3 (for opengv / Pangolin) and FindTBB
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake_modules/" ${CMAKE_MODULE_PATH})
+
+# find eigen with our adapted "config module", that uses our eigen source tree
+set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake_modules/eigen3" ${CMAKE_PREFIX_PATH})
+set(EIGEN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../Thirdparty/eigen")
+
+# SET(EIGEN3_INCLUDE_DIR ${G2O_EIGEN3_INCLUDE})
+
+# FIND_PACKAGE(Eigen3 3.1.0 REQUIRED)
+find_package(Eigen3 3.1.4 EXACT REQUIRED CONFIG) # find eigen with our adapted "config module", that uses our eigen source tree
+set(EIGEN_INCLUDE_DIR ${EIGEN3_INCLUDE_DIR})  # for opengv / pangolin
+include_directories(${EIGEN3_INCLUDE_DIR})
+message(STATUS "Found Eigen headers in: ${EIGEN3_INCLUDE_DIR}")
+
+
+
 IF(EIGEN3_FOUND)
   SET(G2O_EIGEN3_INCLUDE ${EIGEN3_INCLUDE_DIR} CACHE PATH "Directory of Eigen3")
 ELSE(EIGEN3_FOUND)
   SET(G2O_EIGEN3_INCLUDE "" CACHE PATH "Directory of Eigen3")
 ENDIF(EIGEN3_FOUND)
+message(STATUS "Found EIGEN3 headers in: ${G2O_EIGEN3_INCLUDE}")
 
 # Generate config.h
 SET(G2O_CXX_COMPILER "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER}")
