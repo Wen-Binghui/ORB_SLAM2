@@ -53,7 +53,7 @@ System::System(const string& strVocFile, const string& strSettingsFile,
   else if (mSensor == RGBD)
     cout << "RGB-D" << endl;
 
-  // Check settings file //* Examples/Monocular/TUM2.yaml
+  // * Check settings file; strSettingsFile: Examples/Monocular/TUM2.yaml
   cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
   if (!fsSettings.isOpened()) {
     cerr << "Failed to open settings file at: " << strSettingsFile << endl;
