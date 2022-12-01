@@ -3,7 +3,10 @@
         "string": "cpp",
         "core": "cpp",
         "stdvector": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "ostream": "cpp",
+        "chrono": "cpp",
+        "thread": "cpp"
     },
     "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_path": "/usr/bin/clang-format"

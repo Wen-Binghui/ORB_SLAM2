@@ -3,6 +3,7 @@
         {
             "name": "Linux",
             "includePath": [
+                "${workspaceFolder}/src",
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/Thirdparty/eigen",
                 "${workspaceFolder}/Thirdparty/Pangolin/include"
