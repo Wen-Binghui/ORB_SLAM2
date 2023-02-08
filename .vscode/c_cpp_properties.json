@@ -8,7 +8,9 @@
                 "${workspaceFolder}/Thirdparty/eigen",
                 "${workspaceFolder}/Thirdparty/Pangolin/include"
             ],
-            "defines": [],
+            "defines": [
+                "COMPILEDWITHC11"
+            ],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "gnu17",
             "cppStandard": "gnu++14",
