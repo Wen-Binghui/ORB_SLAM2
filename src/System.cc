@@ -229,6 +229,7 @@ cv::Mat System::TrackMonocular(const cv::Mat& im, const double& timestamp) {
     // Check mode change
     {
         unique_lock<mutex> lock(mMutexMode);
+        //: Localization 模式
         if (mbActivateLocalizationMode) {
             mpLocalMapper->RequestStop();
 
@@ -247,7 +248,7 @@ cv::Mat System::TrackMonocular(const cv::Mat& im, const double& timestamp) {
         }
     }
 
-    // Check reset
+    //: Check reset
     {
         unique_lock<mutex> lock(mMutexReset);
         if (mbReset) {
@@ -256,6 +257,7 @@ cv::Mat System::TrackMonocular(const cv::Mat& im, const double& timestamp) {
         }
     }
 
+    //: 普通情况
     cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp);
 
     unique_lock<mutex> lock2(mMutexState);

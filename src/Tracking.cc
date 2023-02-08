@@ -142,7 +142,7 @@ Tracking::Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer,
     if (sensor == System::MONOCULAR)
         mpIniORBextractor = new ORBextractor(2 * nFeatures, fScaleFactor,
                                              nLevels, fIniThFAST, fMinThFAST);
-    //: MONOCULAR 两倍 nFeatures
+    //: MONOCULAR Init 两倍 nFeatures
 
     cout << endl << "ORB Extractor Parameters: " << endl;
     cout << "- Number of Features: " << nFeatures << endl;
@@ -240,7 +240,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat& imRGB, const cv::Mat& imD,
 cv::Mat Tracking::GrabImageMonocular(const cv::Mat& im,
                                      const double& timestamp) {
     mImGray = im;
-
+    //: 转灰度
     if (mImGray.channels() == 3) {
         if (mbRGB)
             cvtColor(mImGray, mImGray, CV_RGB2GRAY);
@@ -253,6 +253,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat& im,
             cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
     }
 
+    //: 初始化用mpIniORBextractor (两倍 nFeatures)
     if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
         mCurrentFrame = Frame(mImGray, timestamp, mpIniORBextractor,
                               mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
