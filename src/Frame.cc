@@ -162,11 +162,15 @@ Frame::Frame(const cv::Mat& imGray, const cv::Mat& imDepth,
     mfLogScaleFactor = log(mfScaleFactor);
     //: 每一层的 ScaleFactors
     mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
+    //: 1.0f / mvScaleFactors
     mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
+    //: mvScaleFactors^2
     mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
+    //: 1.0f / mvLevelSigma2
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
     // ORB extraction
+    //: 这里会 Compute Pyramid 金字塔
     ExtractORB(0, imGray);
 
     N = mvKeys.size();

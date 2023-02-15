@@ -96,7 +96,7 @@ class ORBextractor {
     std::vector<int> mnFeaturesPerLevel;
 
     std::vector<int> umax;
-
+    //: 1, 1.2, 1.44 ...
     std::vector<float> mvScaleFactor;
     std::vector<float> mvInvScaleFactor;
     std::vector<float> mvLevelSigma2;
