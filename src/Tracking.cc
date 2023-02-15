@@ -274,12 +274,14 @@ void Tracking::Track() {
     mLastProcessedState = mState;
 
     // Get Map Mutex -> Map cannot be changed
+    //: 锁住map 中 mMutexMapUpdate
     unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
+    //: 1. NOT_INITIALIZED
     if (mState == NOT_INITIALIZED) {
         if (mSensor == System::STEREO || mSensor == System::RGBD)
             StereoInitialization();
-        else
+        else  //: 单目初始化
             MonocularInitialization();
 
         mpFrameDrawer->Update(this);
@@ -291,6 +293,7 @@ void Tracking::Track() {
 
         // Initial camera pose estimation using motion model or relocalization
         // (if tracking is lost)
+        //: mbOnlyTracking = True => 只定位 不建图
         if (!mbOnlyTracking) {
             // Local Mapping is activated. This is the normal behaviour, unless
             // you explicitly activate the "only tracking" mode.
@@ -300,14 +303,15 @@ void Tracking::Track() {
                 // last frame
                 CheckReplacedInLastFrame();
 
+                //: 不使用运动模型
                 if (mVelocity.empty() ||
                     mCurrentFrame.mnId < mnLastRelocFrameId + 2) {
                     bOK = TrackReferenceKeyFrame();
-                } else {
+                } else {  //: 使用运动模型
                     bOK = TrackWithMotionModel();
                     if (!bOK) bOK = TrackReferenceKeyFrame();
                 }
-            } else {
+            } else {  //: LOST
                 bOK = Relocalization();
             }
         } else {

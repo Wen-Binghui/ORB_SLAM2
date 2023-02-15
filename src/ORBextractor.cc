@@ -1029,7 +1029,7 @@ void ORBextractor::operator()(InputArray _image, InputArray _mask,
 
         offset += nkeypointsLevel;
 
-        // Scale keypoint coordinates
+        //: Scale keypoint coordinates
         if (level != 0) {
             float scale = mvScaleFactor[level];  // getScale(level, firstLevel,
                                                  // scaleFactor);

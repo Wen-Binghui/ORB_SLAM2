@@ -139,7 +139,7 @@ Frame::Frame(const cv::Mat& imLeft, const cv::Mat& imRight,
 
     AssignFeaturesToGrid();
 }
-//: 9 个参数 构造函数 Mono
+//: 9 个参数 构造函数 带 Depth
 Frame::Frame(const cv::Mat& imGray, const cv::Mat& imDepth,
              const double& timeStamp, ORBextractor* extractor,
              ORBVocabulary* voc, cv::Mat& K, cv::Mat& distCoef, const float& bf,
@@ -209,6 +209,7 @@ Frame::Frame(const cv::Mat& imGray, const cv::Mat& imDepth,
     AssignFeaturesToGrid();
 }
 
+//: 不带深度图
 Frame::Frame(const cv::Mat& imGray, const double& timeStamp,
              ORBextractor* extractor, ORBVocabulary* voc, cv::Mat& K,
              cv::Mat& distCoef, const float& bf, const float& thDepth)
@@ -233,6 +234,7 @@ Frame::Frame(const cv::Mat& imGray, const double& timeStamp,
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
     // ORB extraction
+    //: 这里会 Compute Pyramid 金字塔
     ExtractORB(0, imGray);
 
     N = mvKeys.size();
@@ -242,6 +244,7 @@ Frame::Frame(const cv::Mat& imGray, const double& timeStamp,
     UndistortKeyPoints();
 
     // Set no stereo information
+    //: 初始化一些东西 vector， 大小和特征点数目一致
     mvuRight = vector<float>(N, -1);
     mvDepth = vector<float>(N, -1);
 
@@ -249,8 +252,9 @@ Frame::Frame(const cv::Mat& imGray, const double& timeStamp,
     mvbOutlier = vector<bool>(N, false);
 
     // This is done only for the first Frame (or after a change in the
-    // calibration)
+    // calibration) //: 初始化时进行以下
     if (mbInitialComputations) {
+        //: 计算图片边界（带undisto）
         ComputeImageBounds(imGray);
 
         mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) /
@@ -269,7 +273,7 @@ Frame::Frame(const cv::Mat& imGray, const double& timeStamp,
     }
 
     mb = mbf / fx;
-
+    //: 把特征分配到对应的网格中
     AssignFeaturesToGrid();
 }
 
@@ -432,12 +436,14 @@ void Frame::ComputeBoW() {
 }
 
 void Frame::UndistortKeyPoints() {
+    //: 没有畸变，直接跳过
     if (mDistCoef.at<float>(0) == 0.0) {
         mvKeysUn = mvKeys;
         return;
     }
 
     // Fill matrix with points
+    //: 把要处理的点像素坐标放进矩阵中
     cv::Mat mat(N, 2, CV_32F);
     for (int i = 0; i < N; i++) {
         mat.at<float>(i, 0) = mvKeys[i].pt.x;
@@ -449,7 +455,7 @@ void Frame::UndistortKeyPoints() {
     cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
     mat = mat.reshape(1);
 
-    // Fill undistorted keypoint vector
+    //: Fill undistorted keypoint vector
     mvKeysUn.resize(N);
     for (int i = 0; i < N; i++) {
         cv::KeyPoint kp = mvKeys[i];
