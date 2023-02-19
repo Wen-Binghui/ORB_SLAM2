@@ -527,8 +527,15 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(
     const int& maxX, const int& minY, const int& maxY, const int& N,
     const int& level) {
     // Compute how many initial nodes
+    //: width/height 比值(四舍五入后的比值) //!要求图片width/height≥0.5,TUM数据集nIni=1
     const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
+    /*
+        然后开始使用四叉树的方法,每次切分,都将一个网格分为四等分,
+        直至该节点只有一个关键点或者图片提取的关键点数量已经满足要求了,
+        则停止切分.最后,通过以下代码,将每个节点中的最大 Harris 响应值
+        存入 vResultKeys 向量,并返回.至此就算完成了FAST关键点的提取工作,
 
+    */
     const float hX = static_cast<float>(maxX - minX) / nIni;
 
     list<ExtractorNode> lNodes;
@@ -709,6 +716,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(
          lit != lNodes.end(); lit++) {
         vector<cv::KeyPoint>& vNodeKeys = lit->vKeys;
         cv::KeyPoint* pKP = &vNodeKeys[0];
+        //: 最大响应
         float maxResponse = pKP->response;
 
         for (size_t k = 1; k < vNodeKeys.size(); k++) {
@@ -796,6 +804,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
         keypoints.reserve(nfeatures);
 
         //: 这个函数好长
+        // 将图片进行四叉树存储,筛选高质量关键点,确保均匀
         keypoints = DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX,
                                       minBorderY, maxBorderY,
                                       mnFeaturesPerLevel[level], level);
@@ -805,6 +814,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
         // Add border to coordinates and scale information
         const int nkps = keypoints.size();
         for (int i = 0; i < nkps; i++) {
+            //: 从不包含边缘的坐标转换为包含边缘的坐标
             keypoints[i].pt.x += minBorderX;
             keypoints[i].pt.y += minBorderY;
             keypoints[i].octave = level;

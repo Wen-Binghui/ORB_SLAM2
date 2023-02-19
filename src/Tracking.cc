@@ -375,7 +375,7 @@ void Tracking::Track() {
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
 
         // If we have an initial estimation of the camera pose and matching.
-        // Track the local map.
+        //: Track the local map.
         if (!mbOnlyTracking) {
             if (bOK) bOK = TrackLocalMap();
         } else {
@@ -716,7 +716,8 @@ bool Tracking::TrackReferenceKeyFrame() {
     int nmatches =
         matcher.SearchByBoW(mpReferenceKF, mCurrentFrame, vpMapPointMatches);
 
-    if (nmatches < 15) return false;
+    //: 如果匹配不到 15 个，直接退出。（LOST）
+    if (nmatches < 15) return false; 
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
@@ -735,7 +736,8 @@ bool Tracking::TrackReferenceKeyFrame() {
                 pMP->mbTrackInView = false;
                 pMP->mnLastFrameSeen = mCurrentFrame.mnId;
                 nmatches--;
-            } else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+            } //: 如果 被观测数目 > 0 
+            else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
                 nmatchesMap++;
         }
     }
@@ -1062,13 +1064,18 @@ void Tracking::SearchLocalPoints() {
             if (pMP->isBad()) {
                 *vit = static_cast<MapPoint*>(NULL);
             } else {
+                //: 更新能观测到该点的帧数加1(被当前帧观测了)
                 pMP->IncreaseVisible();
+                //: 标记该点被当前帧观测到
                 pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                //: 标记该点在后面搜索匹配时不被投影，因为已经有匹配了
                 pMP->mbTrackInView = false;
             }
         }
     }
 
+    
+    //! Step 2：判断所有局部地图点中除当前帧地图点外的点，是否在当前帧视野范围内
     int nToMatch = 0;
 
     // Project points in frame and check its visibility
@@ -1076,15 +1083,21 @@ void Tracking::SearchLocalPoints() {
                                      vend = mvpLocalMapPoints.end();
          vit != vend; vit++) {
         MapPoint* pMP = *vit;
+        // 已经被当前帧观测到的地图点肯定在视野范围内，跳过
         if (pMP->mnLastFrameSeen == mCurrentFrame.mnId) continue;
+        // 跳过坏点
         if (pMP->isBad()) continue;
         // Project (this fills MapPoint variables for matching)
+        
+        //: 判断地图点是否在在当前帧 视野 内
         if (mCurrentFrame.isInFrustum(pMP, 0.5)) {
-            pMP->IncreaseVisible();
+            pMP->IncreaseVisible(); //: 更新能观测到该点的帧数加1(被当前帧观测了)
             nToMatch++;
         }
     }
 
+
+    //! Step 3：如果需要进行投影匹配的点的数目大于0，就进行投影匹配，增加更多的匹配关系
     if (nToMatch > 0) {
         ORBmatcher matcher(0.8);
         int th = 1;
@@ -1096,6 +1109,7 @@ void Tracking::SearchLocalPoints() {
 }
 
 void Tracking::UpdateLocalMap() {
+    
     // This is for visualization
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
@@ -1105,21 +1119,29 @@ void Tracking::UpdateLocalMap() {
 }
 
 void Tracking::UpdateLocalPoints() {
+    //: 更新局部关键点。先把局部地图清空，然后将局部关键帧的有效地图点添加到局部地图中。
+
+    // Step 1：清空局部地图点
     mvpLocalMapPoints.clear();
 
+    //: Step 2：遍历局部关键帧 mvpLocalKeyFrames
     for (vector<KeyFrame*>::const_iterator itKF = mvpLocalKeyFrames.begin(),
                                            itEndKF = mvpLocalKeyFrames.end();
          itKF != itEndKF; itKF++) {
         KeyFrame* pKF = *itKF;
         const vector<MapPoint*> vpMPs = pKF->GetMapPointMatches();
-
+        //: step 2.1 ：将局部关键帧的地图点添加到mvpLocalMapPoints
         for (vector<MapPoint*>::const_iterator itMP = vpMPs.begin(),
                                                itEndMP = vpMPs.end();
              itMP != itEndMP; itMP++) {
             MapPoint* pMP = *itMP;
             if (!pMP) continue;
+
+            // 用该地图点的成员变量mnTrackReferenceForFrame 记录当前帧的id
+            // 表示它已经是当前帧的局部地图点了，可以防止重复添加局部地图点
             if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId) continue;
-            if (!pMP->isBad()) {
+            if (!pMP->isBad()) 
+            {
                 mvpLocalMapPoints.push_back(pMP);
                 pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
             }

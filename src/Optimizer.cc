@@ -251,6 +251,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     int nInitialCorrespondences=0;
 
     // Set Frame vertex
+    //: 将初始位姿添加
     g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
     vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
     vSE3->setId(0);
@@ -279,8 +280,9 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
     for(int i=0; i<N; i++)
     {
+        //: 取出 对应 map 点
         MapPoint* pMP = pFrame->mvpMapPoints[i];
-        if(pMP)
+        if(pMP) //: 检查是不是 NULL 
         {
             // Monocular observation
             if(pFrame->mvuRight[i]<0)
@@ -288,7 +290,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
                 nInitialCorrespondences++;
                 pFrame->mvbOutlier[i] = false;
 
-                Eigen::Matrix<double,2,1> obs;
+                Eigen::Matrix<double,2,1> obs; //: 像素坐标
                 const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
                 obs << kpUn.pt.x, kpUn.pt.y;
 
