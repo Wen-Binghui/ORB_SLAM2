@@ -322,7 +322,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     cv::Mat P = pMP->GetWorldPos(); 
  
     // 3D in camera coordinates
-    // 根据当前帧(粗糙)位姿转化到当前相机坐标系下的三维点Pc
+    //: 根据当前帧(粗糙)位姿转化到当前相机坐标系下的三维点Pc
     const cv::Mat Pc = mRcw*P+mtcw; 
     const float &PcX = Pc.at<float>(0);
     const float &PcY = Pc.at<float>(1);
@@ -330,7 +330,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
  
     // Check positive depth
     // Step 2 关卡一：将这个地图点变换到当前帧的相机坐标系下，如果深度值为正才能继续下一步。
-    if(PcZ<0.0f)
+    if(PcZ<0.0f) // 深度值为负
         return false;
  
     // Project in image and check it is not outside
@@ -339,7 +339,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     const float u=fx*PcX*invz+cx;			
     const float v=fy*PcY*invz+cy;			
  
-    // 判断是否在图像边界中，只要不在那么就说明无法在当前帧下进行重投影
+    //: 判断是否在图像边界中，只要不在那么就说明无法在当前帧下进行重投影
     if(u<mnMinX || u>mnMaxX)
         return false;
     if(v<mnMinY || v>mnMaxY)
@@ -363,6 +363,11 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
  
     // Check viewing angle
     // Step 5 关卡四：计算当前相机指向地图点向量和地图点的平均观测方向夹角，小于60°才能进入下一步。
+    /*
+        有关计算有效距离与计算当前相机指向地图点向量和地图点的平均观测方向夹角
+        是通过MapPoint::UpdateNormalAndDepth函数获得的
+    */
+   
     cv::Mat Pn = pMP->GetNormal();
  
 	// 计算当前相机指向地图点向量和地图点的平均观测方向夹角的余弦值，注意平均观测方向为单位向量

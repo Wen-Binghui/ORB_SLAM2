@@ -1149,107 +1149,147 @@ void Tracking::UpdateLocalPoints() {
     }
 }
 
-void Tracking::UpdateLocalKeyFrames() {
+void Tracking::UpdateLocalKeyFrames()
+{
     // Each map point vote for the keyframes in which it has been observed
-    map<KeyFrame*, int> keyframeCounter;
-    for (int i = 0; i < mCurrentFrame.N; i++) {
-        if (mCurrentFrame.mvpMapPoints[i]) {
+    // Step 1：遍历当前帧的地图点，记录所有能观测到当前帧地图点的关键帧
+    map<KeyFrame*,int> keyframeCounter;
+    for(int i=0; i<mCurrentFrame.N; i++)
+    {
+        if(mCurrentFrame.mvpMapPoints[i])
+        {   
+            //: 取出一个 对应 地图点
             MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
-            if (!pMP->isBad()) {
-                const map<KeyFrame*, size_t> observations =
-                    pMP->GetObservations();
-                for (map<KeyFrame*, size_t>::const_iterator
-                         it = observations.begin(),
-                         itend = observations.end();
-                     it != itend; it++)
-                    keyframeCounter[it->first]++;
-            } else {
-                mCurrentFrame.mvpMapPoints[i] = NULL;
+            if(!pMP->isBad())
+            {
+                // 得到观测到该地图点的关键帧和该地图点在关键帧中的索引
+                const map<KeyFrame*,size_t> observations = pMP->GetObservations();
+                // 由于一个地图点可以被多个关键帧观测到,因此对于每一次观测,都对观测到这个地图点的关键帧进行累计投票
+                for(map<KeyFrame*,size_t>::const_iterator it=observations.begin(), itend=observations.end(); it!=itend; it++)
+                    // 这里的操作非常精彩！
+                    // map[key] = value，当要插入的键存在时，会覆盖键对应的原来的值。如果键不存在，则添加一组键值对
+                    // it->first 是地图点看到的关键帧，同一个关键帧看到的地图点会累加到该关键帧计数
+                    // 所以最后keyframeCounter 第一个参数表示某个关键帧，第2个参数表示该关键帧看到了多少当前帧(mCurrentFrame)的地图点，也就是“共视程度”
+                    keyframeCounter[it->first]++;      
+            }
+            else
+            {
+                mCurrentFrame.mvpMapPoints[i]=NULL;
             }
         }
     }
-
-    if (keyframeCounter.empty()) return;
-
-    int max = 0;
-    KeyFrame* pKFmax = static_cast<KeyFrame*>(NULL);
-
+ 
+    //: 没有当前帧没有共视关键帧，返回
+    if(keyframeCounter.empty())
+        return;
+ 
+    // 存储具有最多观测次数（max）的关键帧
+    int max=0;
+    KeyFrame* pKFmax= static_cast<KeyFrame*>(NULL);
+ 
+    // Step 2：更新局部关键帧（mvpLocalKeyFrames），添加局部关键帧有3种类型
+    // 先清空局部关键帧
     mvpLocalKeyFrames.clear();
-    mvpLocalKeyFrames.reserve(3 * keyframeCounter.size());
-
-    // All keyframes that observe a map point are included in the local map.
-    // Also check which keyframe shares most points
-    for (map<KeyFrame*, int>::const_iterator it = keyframeCounter.begin(),
-                                             itEnd = keyframeCounter.end();
-         it != itEnd; it++) {
+    // 先申请3倍内存，不够后面再加
+    mvpLocalKeyFrames.reserve(3*keyframeCounter.size());
+ 
+    // All keyframes that observe a map point are included in the local map. Also check which keyframe shares most points
+    // Step 2.1 类型1：能观测到当前帧地图点的关键帧作为局部关键帧 （将邻居拉拢入伙）（一级共视关键帧） 
+    for(map<KeyFrame*,int>::const_iterator it=keyframeCounter.begin(), itEnd=keyframeCounter.end(); it!=itEnd; it++)
+    {
         KeyFrame* pKF = it->first;
-
-        if (pKF->isBad()) continue;
-
-        if (it->second > max) {
-            max = it->second;
-            pKFmax = pKF;
+ 
+        // 如果设定为要删除的，跳过
+        if(pKF->isBad())
+            continue;
+        
+        // 寻找具有最大观测数目的关键帧
+        if(it->second>max)
+        {
+            max=it->second;
+            pKFmax=pKF;
         }
-
+ 
+        // 添加到局部关键帧的列表里
         mvpLocalKeyFrames.push_back(it->first);
+        
+        // 用该关键帧的成员变量mnTrackReferenceForFrame 记录当前帧的id
+        // 表示它已经是当前帧的局部关键帧了，可以防止重复添加局部关键帧
         pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
     }
-
-    // Include also some not-already-included keyframes that are neighbors to
-    // already-included keyframes
-    for (vector<KeyFrame*>::const_iterator itKF = mvpLocalKeyFrames.begin(),
-                                           itEndKF = mvpLocalKeyFrames.end();
-         itKF != itEndKF; itKF++) {
+ 
+ 
+    // Include also some not-already-included keyframes that are neighbors to already-included keyframes
+    // Step 2.2 遍历一级共视关键帧，寻找更多的局部关键帧 
+    for(vector<KeyFrame*>::const_iterator itKF=mvpLocalKeyFrames.begin(), itEndKF=mvpLocalKeyFrames.end(); itKF!=itEndKF; itKF++)
+    {
         // Limit the number of keyframes
-        if (mvpLocalKeyFrames.size() > 80) break;
-
+        // 处理的局部关键帧不超过80帧
+        if(mvpLocalKeyFrames.size()>80)
+            break;
+ 
         KeyFrame* pKF = *itKF;
-
+ 
+        // 类型2:一级共视关键帧的共视（前10个）关键帧，称为二级共视关键帧（将邻居的邻居拉拢入伙）
+        // 如果共视帧不足10帧,那么就返回所有具有共视关系的关键帧
         const vector<KeyFrame*> vNeighs = pKF->GetBestCovisibilityKeyFrames(10);
-
-        for (vector<KeyFrame*>::const_iterator itNeighKF = vNeighs.begin(),
-                                               itEndNeighKF = vNeighs.end();
-             itNeighKF != itEndNeighKF; itNeighKF++) {
+        // vNeighs 是按照共视程度从大到小排列
+        for(vector<KeyFrame*>::const_iterator itNeighKF=vNeighs.begin(), itEndNeighKF=vNeighs.end(); itNeighKF!=itEndNeighKF; itNeighKF++)
+        {
             KeyFrame* pNeighKF = *itNeighKF;
-            if (!pNeighKF->isBad()) {
-                if (pNeighKF->mnTrackReferenceForFrame != mCurrentFrame.mnId) {
+            if(!pNeighKF->isBad())
+            {
+                // mnTrackReferenceForFrame防止重复添加局部关键帧
+                if(pNeighKF->mnTrackReferenceForFrame!=mCurrentFrame.mnId)
+                {
                     mvpLocalKeyFrames.push_back(pNeighKF);
-                    pNeighKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+                    pNeighKF->mnTrackReferenceForFrame=mCurrentFrame.mnId;
+                    //? 找到一个就直接跳出for循环？
                     break;
                 }
             }
         }
-
+ 
+        // 类型3:将一级共视关键帧的子关键帧作为局部关键帧（将邻居的孩子们拉拢入伙）
         const set<KeyFrame*> spChilds = pKF->GetChilds();
-        for (set<KeyFrame*>::const_iterator sit = spChilds.begin(),
-                                            send = spChilds.end();
-             sit != send; sit++) {
+        for(set<KeyFrame*>::const_iterator sit=spChilds.begin(), send=spChilds.end(); sit!=send; sit++)
+        {
             KeyFrame* pChildKF = *sit;
-            if (!pChildKF->isBad()) {
-                if (pChildKF->mnTrackReferenceForFrame != mCurrentFrame.mnId) {
+            if(!pChildKF->isBad())
+            {
+                if(pChildKF->mnTrackReferenceForFrame!=mCurrentFrame.mnId)
+                {
                     mvpLocalKeyFrames.push_back(pChildKF);
-                    pChildKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+                    pChildKF->mnTrackReferenceForFrame=mCurrentFrame.mnId;
+                    //? 找到一个就直接跳出for循环？
                     break;
                 }
             }
         }
-
+ 
+        // 类型3:将一级共视关键帧的父关键帧（将邻居的父母们拉拢入伙）
         KeyFrame* pParent = pKF->GetParent();
-        if (pParent) {
-            if (pParent->mnTrackReferenceForFrame != mCurrentFrame.mnId) {
+        if(pParent)
+        {
+            // mnTrackReferenceForFrame防止重复添加局部关键帧
+            if(pParent->mnTrackReferenceForFrame!=mCurrentFrame.mnId)
+            {
                 mvpLocalKeyFrames.push_back(pParent);
-                pParent->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+                pParent->mnTrackReferenceForFrame=mCurrentFrame.mnId;
+                //! 感觉是个bug！如果找到父关键帧会直接跳出整个循环
                 break;
             }
         }
+ 
     }
-
-    if (pKFmax) {
+ 
+    // Step 3：更新当前帧的参考关键帧，与自己共视程度最高的关键帧作为参考关键帧
+    if(pKFmax)
+    {
         mpReferenceKF = pKFmax;
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
     }
 }
-
 bool Tracking::Relocalization() {
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
