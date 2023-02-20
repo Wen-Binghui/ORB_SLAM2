@@ -45,60 +45,82 @@ ORBmatcher::ORBmatcher(float nnratio, bool checkOri): mfNNratio(nnratio), mbChec
 int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints, const float th)
 {
     int nmatches=0;
-
+ 
+    // 如果 th！=1 (RGBD 相机或者刚刚进行过重定位), 需要扩大范围搜索
     const bool bFactor = th!=1.0;
-
+ 
+    // Step 1 遍历有效的局部地图点
     for(size_t iMP=0; iMP<vpMapPoints.size(); iMP++)
     {
         MapPoint* pMP = vpMapPoints[iMP];
+ 
+        // 判断该点是否要投影
         if(!pMP->mbTrackInView)
             continue;
-
+ 
         if(pMP->isBad())
             continue;
-
+            
+        // 通过距离预测的金字塔层数，该层数相对于当前的帧
         const int &nPredictedLevel = pMP->mnTrackScaleLevel;
-
+ 
         // The size of the window will depend on the viewing direction
+        // Step 2 设定搜索搜索窗口的大小。取决于视角, 若当前视角和平均视角夹角较小时, r取一个较小的值
         float r = RadiusByViewingCos(pMP->mTrackViewCos);
-
+        
+        // 如果需要扩大范围搜索，则乘以阈值th
         if(bFactor)
             r*=th;
-
+ 
+        // Step 3 通过投影点以及搜索窗口和预测的尺度进行搜索, 找出搜索半径内的候选匹配点索引
         const vector<size_t> vIndices =
-                F.GetFeaturesInArea(pMP->mTrackProjX,pMP->mTrackProjY,r*F.mvScaleFactors[nPredictedLevel],nPredictedLevel-1,nPredictedLevel);
-
+                F.GetFeaturesInArea(pMP->mTrackProjX,pMP->mTrackProjY,      // 该地图点投影到一帧上的坐标
+                                    r*F.mvScaleFactors[nPredictedLevel],    // 认为搜索窗口的大小和该特征点被追踪到时所处的尺度也有关系
+                                    nPredictedLevel-1,nPredictedLevel);     // 搜索的图层范围
+ 
+        // 没找到候选的,就放弃对当前点的匹配
         if(vIndices.empty())
             continue;
-
+ 
         const cv::Mat MPdescriptor = pMP->GetDescriptor();
-
+ 
+        // 最优的次优的描述子距离和index
         int bestDist=256;
         int bestLevel= -1;
         int bestDist2=256;
         int bestLevel2 = -1;
         int bestIdx =-1 ;
-
+ 
         // Get best and second matches with near keypoints
+        // Step 4 寻找候选匹配点中的最佳和次佳匹配点
         for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
         {
             const size_t idx = *vit;
-
+ 
+            // 如果Frame中的该兴趣点已经有对应的MapPoint了,则退出该次循环
             if(F.mvpMapPoints[idx])
                 if(F.mvpMapPoints[idx]->Observations()>0)
                     continue;
-
+ 
+            //如果是双目数据
             if(F.mvuRight[idx]>0)
             {
+                //计算在X轴上的投影误差
                 const float er = fabs(pMP->mTrackProjXR-F.mvuRight[idx]);
+                //超过阈值,说明这个点不行,丢掉.
+                //这里的阈值定义是以给定的搜索范围r为参考,然后考虑到越近的点(nPredictedLevel越大), 相机运动时对其产生的影响也就越大,
+                //因此需要扩大其搜索空间.
+                //当给定缩放倍率为1.2的时候, mvScaleFactors 中的数据是: 1 1.2 1.2^2 1.2^3 ... 
                 if(er>r*F.mvScaleFactors[nPredictedLevel])
                     continue;
             }
-
+ 
             const cv::Mat &d = F.mDescriptors.row(idx);
-
+ 
+            // 计算地图点和候选投影点的描述子距离
             const int dist = DescriptorDistance(MPdescriptor,d);
-
+            
+            // 寻找描述子距离最小和次小的特征点和索引
             if(dist<bestDist)
             {
                 bestDist2=bestDist;
@@ -113,18 +135,23 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
                 bestDist2=dist;
             }
         }
-
+ 
         // Apply ratio to second match (only if best and second are in the same scale level)
+        // Step 5 筛选最佳匹配点
+        // 最佳匹配距离还需要满足在设定阈值内
         if(bestDist<=TH_HIGH)
         {
+            // 条件1：bestLevel==bestLevel2 表示 最佳和次佳在同一金字塔层级
+            // 条件2：bestDist>mfNNratio*bestDist2 表示最佳和次佳距离不满足阈值比例。理论来说 bestDist/bestDist2 越小越好
             if(bestLevel==bestLevel2 && bestDist>mfNNratio*bestDist2)
                 continue;
-
-            F.mvpMapPoints[bestIdx]=pMP;
+ 
+            //保存结果: 为Frame中的特征点增加对应的MapPoint
+            F.mvpMapPoints[bestIdx]=pMP; 
             nmatches++;
         }
     }
-
+ 
     return nmatches;
 }
 

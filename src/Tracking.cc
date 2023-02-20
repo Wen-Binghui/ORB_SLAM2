@@ -1194,7 +1194,7 @@ void Tracking::UpdateLocalKeyFrames()
     mvpLocalKeyFrames.reserve(3*keyframeCounter.size());
  
     // All keyframes that observe a map point are included in the local map. Also check which keyframe shares most points
-    // Step 2.1 类型1：能观测到当前帧地图点的关键帧作为局部关键帧 （将邻居拉拢入伙）（一级共视关键帧） 
+    // Step 2.1 类型1：能观测到当前帧地图点的关键帧作为局部关键帧 （将邻居拉拢入伙）//!（一级共视关键帧） 
     for(map<KeyFrame*,int>::const_iterator it=keyframeCounter.begin(), itEnd=keyframeCounter.end(); it!=itEnd; it++)
     {
         KeyFrame* pKF = it->first;
@@ -1203,7 +1203,7 @@ void Tracking::UpdateLocalKeyFrames()
         if(pKF->isBad())
             continue;
         
-        // 寻找具有最大观测数目的关键帧
+        //: 寻找具有最大观测数目的关键帧
         if(it->second>max)
         {
             max=it->second;
@@ -1220,14 +1220,15 @@ void Tracking::UpdateLocalKeyFrames()
  
  
     // Include also some not-already-included keyframes that are neighbors to already-included keyframes
-    // Step 2.2 遍历一级共视关键帧，寻找更多的局部关键帧 
+    //: Step 2.2 遍历一级共视关键帧，寻找更多的局部关键帧 
     for(vector<KeyFrame*>::const_iterator itKF=mvpLocalKeyFrames.begin(), itEndKF=mvpLocalKeyFrames.end(); itKF!=itEndKF; itKF++)
     {
         // Limit the number of keyframes
         // 处理的局部关键帧不超过80帧
         if(mvpLocalKeyFrames.size()>80)
             break;
- 
+
+        //: 取出一帧
         KeyFrame* pKF = *itKF;
  
         // 类型2:一级共视关键帧的共视（前10个）关键帧，称为二级共视关键帧（将邻居的邻居拉拢入伙）
