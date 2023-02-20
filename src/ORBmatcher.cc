@@ -72,11 +72,11 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
         if(bFactor)
             r*=th;
  
-        // Step 3 通过投影点以及搜索窗口和预测的尺度进行搜索, 找出搜索半径内的候选匹配点索引
+        //: Step 3 通过投影点以及搜索窗口和预测的尺度进行搜索, 找出搜索半径内 当前帧图像中 的候选匹配点索引vector
         const vector<size_t> vIndices =
-                F.GetFeaturesInArea(pMP->mTrackProjX,pMP->mTrackProjY,      // 该地图点投影到一帧上的坐标
-                                    r*F.mvScaleFactors[nPredictedLevel],    // 认为搜索窗口的大小和该特征点被追踪到时所处的尺度也有关系
-                                    nPredictedLevel-1,nPredictedLevel);     // 搜索的图层范围
+                F.GetFeaturesInArea(pMP->mTrackProjX, pMP->mTrackProjY,      // 该地图点投影到一帧上的坐标
+                                    r * F.mvScaleFactors[nPredictedLevel],    // 认为搜索窗口的大小和该特征点被追踪到时所处的尺度也有关系
+                                    nPredictedLevel-1, nPredictedLevel);     // 搜索的图层范围
  
         // 没找到候选的,就放弃对当前点的匹配
         if(vIndices.empty())

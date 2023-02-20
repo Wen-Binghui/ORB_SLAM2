@@ -862,41 +862,64 @@ bool Tracking::TrackWithMotionModel() {
     return nmatchesMap >= 10;
 }
 
-bool Tracking::TrackLocalMap() {
-    // We have an estimation of the camera pose and some map points tracked in
-    // the frame. We retrieve the local map and try to find matches to points in
-    // the local map.
-
+bool Tracking::TrackLocalMap()
+{
+    // We have an estimation of the camera pose and some map points tracked in the frame.
+    // We retrieve the local map and try to find matches to points in the local map.
+ 
+    // Update Local KeyFrames and Local Points
+    //: Step 1：更新局部关键帧 mvpLocalKeyFrames 和局部地图点 mvpLocalMapPoints
     UpdateLocalMap();
-
+ 
+    //: Step 2：筛选局部地图中新增的在视野范围内的地图点，投影到当前帧搜索匹配，得到更多的匹配关系
     SearchLocalPoints();
-
+ 
     // Optimize Pose
+    // 在这个函数之前，在 Relocalization、TrackReferenceKeyFrame、TrackWithMotionModel 中都有位姿优化，
+    //: Step 3：前面新增了更多的匹配关系，BA优化得到更准确的位姿
     Optimizer::PoseOptimization(&mCurrentFrame);
     mnMatchesInliers = 0;
-
+ 
     // Update MapPoints Statistics
-    for (int i = 0; i < mCurrentFrame.N; i++) {
-        if (mCurrentFrame.mvpMapPoints[i]) {
-            if (!mCurrentFrame.mvbOutlier[i]) {
+    //: Step 4：更新当前帧的地图点被观测程度，并统计跟踪局部地图后匹配数目
+    for(int i=0; i<mCurrentFrame.N; i++)
+    {
+        if(mCurrentFrame.mvpMapPoints[i])
+        {
+            // 由于当前帧的地图点可以被当前帧观测到，其被观测统计量加1
+            if(!mCurrentFrame.mvbOutlier[i])
+            {
+                // 找到该点的帧数mnFound 加 1
                 mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
-                if (!mbOnlyTracking) {
-                    if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                //查看当前是否是在纯定位过程
+                if(!mbOnlyTracking)
+                {
+                    // 如果该地图点被相机观测数目nObs大于0，匹配内点计数+1
+                    // nObs： 被观测到的相机数目，单目+1，双目或RGB-D则+2
+                    if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
                         mnMatchesInliers++;
-                } else
+                }
+                else
+                    // 记录当前帧跟踪到的地图点数目，用于统计跟踪效果
                     mnMatchesInliers++;
-            } else if (mSensor == System::STEREO)
+            }
+            // 如果这个地图点是外点,并且当前相机输入还是双目的时候,就删除这个点
+            // ?单目就不管吗
+            else if(mSensor==System::STEREO)  
                 mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
+ 
         }
     }
-
+ 
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
-    if (mCurrentFrame.mnId < mnLastRelocFrameId + mMaxFrames &&
-        mnMatchesInliers < 50)
+    //: Step 5：根据跟踪匹配数目及重定位情况决定是否跟踪成功
+    // 如果最近刚刚发生了重定位,那么至少成功匹配50个点才认为是成功跟踪
+    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
         return false;
-
-    if (mnMatchesInliers < 30)
+ 
+    //如果是正常的状态话只要跟踪的地图点大于30个就认为成功了
+    if(mnMatchesInliers<30)
         return false;
     else
         return true;
