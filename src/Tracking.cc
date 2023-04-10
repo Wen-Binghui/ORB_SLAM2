@@ -705,15 +705,21 @@ void Tracking::CheckReplacedInLastFrame() {
 }
 
 bool Tracking::TrackReferenceKeyFrame() {
+    """
+    应用场景：没有速度信息的时候、刚完成重定位、或者恒速模型跟踪失败后使用，大部分时间不用。只
+            利用到了参考帧的信息。
+        1. 匹配方法是 SearchByBoW, 匹配当前帧和关键帧在同一节点下的特征点，不需要投影，速度很快
+        2. BA优化 (仅优化位姿)，提供比较粗糙的位姿
+    """
     // Compute Bag of Words vector
-    mCurrentFrame.ComputeBoW();
+    mCurrentFrame.ComputeBoW();  // 存到 mCurrentFrame.mBowVec
 
     // We perform first an ORB matching with the reference keyframe
     // If enough matches are found we setup a PnP solver
     ORBmatcher matcher(0.7, true);
     vector<MapPoint*> vpMapPointMatches;
 
-    int nmatches =
+    int nmatches = //  通过特征点的bow加快当前帧和参考帧之间的特征点匹配
         matcher.SearchByBoW(mpReferenceKF, mCurrentFrame, vpMapPointMatches);
 
     //: 如果匹配不到 15 个，直接退出。（LOST）

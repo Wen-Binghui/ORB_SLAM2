@@ -472,7 +472,7 @@ bool Frame::PosInGrid(const cv::KeyPoint& kp, int& posX, int& posY) {
 void Frame::ComputeBoW() {
     if (mBowVec.empty()) {
         vector<cv::Mat> vCurrentDesc =
-            Converter::toDescriptorVector(mDescriptors);
+            Converter::toDescriptorVector(mDescriptors); // 矩阵变vector
         mpORBvocabulary->transform(vCurrentDesc, mBowVec, mFeatVec, 4);
     }
 }
