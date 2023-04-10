@@ -712,7 +712,7 @@ bool Tracking::TrackReferenceKeyFrame() {
         2. BA优化 (仅优化位姿)，提供比较粗糙的位姿
     """
     // Compute Bag of Words vector
-    mCurrentFrame.ComputeBoW();  // 存到 mCurrentFrame.mBowVec
+    mCurrentFrame.ComputeBoW();  // 存到 mCurrentFrame.mBowVec 和 .mFeatVec
 
     // We perform first an ORB matching with the reference keyframe
     // If enough matches are found we setup a PnP solver
@@ -725,7 +725,7 @@ bool Tracking::TrackReferenceKeyFrame() {
     //: 如果匹配不到 15 个，直接退出。（LOST）
     if (nmatches < 15) return false; 
 
-    mCurrentFrame.mvpMapPoints = vpMapPointMatches;
+    mCurrentFrame.mvpMapPoints = vpMapPointMatches; //记录特征匹配成功后每个特征点对应的MapPoint（来自参考帧）
     mCurrentFrame.SetPose(mLastFrame.mTcw);
 
     Optimizer::PoseOptimization(&mCurrentFrame);

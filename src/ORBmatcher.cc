@@ -204,6 +204,11 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
     DBoW2::FeatureVector::const_iterator KFend = vFeatVecKF.end();
     DBoW2::FeatureVector::const_iterator Fend = F.mFeatVec.end();
 
+
+    """
+    对属于同一node(同一node才可能是匹配点)的特征点通过描述子距离进行匹配, 遍历该node中特征
+    点，特征点最小距离明显小于次小距离才作为成功匹配点，记录特征点对方向差统计到直方图
+    """
     while(KFit != KFend && Fit != Fend)
     {
         if(KFit->first == Fit->first)
@@ -211,7 +216,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
             const vector<unsigned int> vIndicesKF = KFit->second;
             const vector<unsigned int> vIndicesF = Fit->second;
 
-            for(size_t iKF=0; iKF<vIndicesKF.size(); iKF++)
+            for(size_t iKF=0; iKF<vIndicesKF.size(); iKF++) // 取 KF 的一个 点
             {
                 const unsigned int realIdxKF = vIndicesKF[iKF];
 
@@ -229,7 +234,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                 int bestIdxF =-1 ;
                 int bestDist2=256;
 
-                for(size_t iF=0; iF<vIndicesF.size(); iF++)
+                for(size_t iF=0; iF<vIndicesF.size(); iF++) // 取 F 的一个 点
                 {
                     const unsigned int realIdxF = vIndicesF[iF];
 
@@ -254,7 +259,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
                 if(bestDist1<=TH_LOW)
                 {
-                    if(static_cast<float>(bestDist1)<mfNNratio*static_cast<float>(bestDist2))
+                    if(static_cast<float>(bestDist1) < mfNNratio*static_cast<float>(bestDist2))
                     {
                         vpMapPointMatches[bestIdxF]=pMP;
 
@@ -277,7 +282,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
             }
 
-            KFit++;
+            KFit++;  // 下一个 Node
             Fit++;
         }
         else if(KFit->first < Fit->first)

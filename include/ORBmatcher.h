@@ -97,7 +97,7 @@ protected:
 
     void ComputeThreeMaxima(std::vector<int>* histo, const int L, int &ind1, int &ind2, int &ind3);
 
-    float mfNNratio;
+    float mfNNratio; // 最小距离明显小于次小距离 ratio
     bool mbCheckOrientation;
 };
 
