@@ -196,7 +196,7 @@ vector<KeyFrame*> KeyFrameDatabase::DetectRelocalizationCandidates(Frame* F) {
     for (DBoW2::BowVector::const_iterator vit = F->mBowVec.begin(),
                                           vend = F->mBowVec.end();
          vit != vend; vit++) {
-      list<KeyFrame*>& lKFs = mvInvertedFile[vit->first];
+      list<KeyFrame*>& lKFs = mvInvertedFile[vit->first]; // Inverse Direct Index （存放进 word-Id 对应的 FrameId）
 
       for (list<KeyFrame*>::iterator lit = lKFs.begin(), lend = lKFs.end();
            lit != lend; lit++) {
