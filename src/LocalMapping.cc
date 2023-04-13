@@ -45,61 +45,85 @@ void LocalMapping::SetLoopCloser(LoopClosing* pLoopCloser) {
 
 void LocalMapping::SetTracker(Tracking* pTracker) { mpTracker = pTracker; }
 
-void LocalMapping::Run() {
+void LocalMapping::Run()
+{
+ 
     mbFinished = false;
-
-    while (1) {
+ 
+    while(1)
+    {
         // Tracking will see that Local Mapping is busy
+        // 告诉Tracking，LocalMapping正处于繁忙状态，
+        // LocalMapping线程处理的关键帧都是Tracking线程发过的
+        // 在LocalMapping线程还没有处理完关键帧之前Tracking线程最好不要发送太快
         SetAcceptKeyFrames(false);
-
+ 
         // Check if there are keyframes in the queue
-        if (CheckNewKeyFrames()) {
+        // 等待处理的关键帧列表不为空
+        if(CheckNewKeyFrames())
+        {
             // BoW conversion and insertion in Map
             ProcessNewKeyFrame();
-
+ 
             // Check recent MapPoints
+            // 剔除ProcessNewKeyFrame函数中引入的不合格MapPoints
             MapPointCulling();
-
+ 
             // Triangulate new MapPoints
+            // 相机运动过程中与相邻关键帧通过三角化恢复出一些MapPoints
             CreateNewMapPoints();
-
-            if (!CheckNewKeyFrames()) {
-                // Find more matches in neighbor keyframes and fuse point
-                // duplications
+ 
+            // 已经处理完队列中的最后的一个关键帧
+            if(!CheckNewKeyFrames())
+            {
+                // Find more matches in neighbor keyframes and fuse point duplications
+                // 检查并融合当前关键帧与相邻帧（两级相邻）重复的MapPoints
                 SearchInNeighbors();
             }
-
+ 
             mbAbortBA = false;
-
-            if (!CheckNewKeyFrames() && !stopRequested()) {
+ 
+            if(!CheckNewKeyFrames() && !stopRequested())
+            {
                 // Local BA
-                if (mpMap->KeyFramesInMap() > 2)
-                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,
-                                                     &mbAbortBA, mpMap);
-
+                if(mpMap->KeyFramesInMap()>2)
+                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
+ 
                 // Check redundant local Keyframes
+                // 检测并剔除当前帧相邻的关键帧中冗余的关键帧
+                // 剔除的标准是：该关键帧的90%的MapPoints可以被其它关键帧观测到
+                // trick!
+                // Tracking中先把关键帧交给LocalMapping线程
+                // 并且在Tracking中InsertKeyFrame函数的条件比较松，交给LocalMapping线程的关键帧会比较密
+                // 在这里再删除冗余的关键帧
                 KeyFrameCulling();
             }
-
+ 
+            // 将当前帧加入到闭环检测队列中
             mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
-        } else if (Stop()) {
+        }
+        else if(Stop())
+        {
             // Safe area to stop
-            while (isStopped() && !CheckFinish()) {
+            while(isStopped() && !CheckFinish())
+            {
                 usleep(3000);
             }
-            if (CheckFinish()) break;
+            if(CheckFinish())
+                break;
         }
-
+ 
         ResetIfRequested();
-
+ 
         // Tracking will see that Local Mapping is busy
         SetAcceptKeyFrames(true);
-
-        if (CheckFinish()) break;
-
+ 
+        if(CheckFinish())
+            break;
+ 
         usleep(3000);
     }
-
+ 
     SetFinish();
 }
 
