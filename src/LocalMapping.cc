@@ -56,7 +56,7 @@ void LocalMapping::Run()
         // 告诉Tracking，LocalMapping正处于繁忙状态，
         // LocalMapping线程处理的关键帧都是Tracking线程发过的
         // 在LocalMapping线程还没有处理完关键帧之前Tracking线程最好不要发送太快
-        SetAcceptKeyFrames(false);
+        SetAcceptKeyFrames(false);  // 告诉Tracking线程，LocalMapping是否处于繁忙状态。如果处于繁忙状态则不要再添加新的关键帧了，否则可以添加关键帧
  
         // Check if there are keyframes in the queue
         // 等待处理的关键帧列表不为空
@@ -138,40 +138,54 @@ bool LocalMapping::CheckNewKeyFrames() {
     return (!mlNewKeyFrames.empty());
 }
 
-void LocalMapping::ProcessNewKeyFrame() {
+void LocalMapping::ProcessNewKeyFrame()
+{
     {
         unique_lock<mutex> lock(mMutexNewKFs);
         mpCurrentKeyFrame = mlNewKeyFrames.front();
         mlNewKeyFrames.pop_front();
     }
-
+ 
     // Compute Bags of Words structures
-    mpCurrentKeyFrame->ComputeBoW();
-
+    mpCurrentKeyFrame->ComputeBoW(); // 将描述子矩阵类型(cv::mat)转换为描述子向量类型(std::vector)
+ 
     // Associate MapPoints to the new keyframe and update normal and descriptor
-    const vector<MapPoint*> vpMapPointMatches =
-        mpCurrentKeyFrame->GetMapPointMatches();
+    const vector<MapPoint*> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
+    
 
-    for (size_t i = 0; i < vpMapPointMatches.size(); i++) {
+    for(size_t i=0; i<vpMapPointMatches.size(); i++)
+    {
         MapPoint* pMP = vpMapPointMatches[i];
-        if (pMP) {
-            if (!pMP->isBad()) {
-                if (!pMP->IsInKeyFrame(mpCurrentKeyFrame)) {
+        if(pMP)
+        {
+            if(!pMP->isBad())
+            {
+                // 如果该地图点没有记录该帧，则添加上这个记录。
+                """
+                    pMP->IsInKeyFrame 为 false, 表示地图点不是来自当前帧的观测（一般情况都不是）, 则为当前地图点添加观测, 并更新normal, 距离, 以及描述子.
+                    pMP->IsInKeyFrame 为 true, 表示地图点来自当前帧.
+                        来源有可能是双目或RGB-D跟踪过程中新生成的地图点, 或者是CreateNewMapPoints中通过三角化产生
+                """
+                if(!pMP->IsInKeyFrame(mpCurrentKeyFrame))
+                {
+                    // i 记录了地图点在关键帧中的索引
                     pMP->AddObservation(mpCurrentKeyFrame, i);
+                    // 因为地图点增加了新的观测，而法向量是所有观测到该点的关键帧都求一个法徽号向量之后求均，所以需要更新             
                     pMP->UpdateNormalAndDepth();
+                    // 从所有关键帧的观测点中选择一个作为该点的描述子
                     pMP->ComputeDistinctiveDescriptors();
-                } else  // this can only happen for new stereo points inserted
-                        // by the Tracking
+                }
+                else // this can only happen for new stereo points inserted by the Tracking
                 {
                     mlpRecentAddedMapPoints.push_back(pMP);
                 }
             }
         }
-    }
-
+    }    
+ 
     // Update links in the Covisibility Graph
     mpCurrentKeyFrame->UpdateConnections();
-
+ 
     // Insert Keyframe in Map
     mpMap->AddKeyFrame(mpCurrentKeyFrame);
 }
