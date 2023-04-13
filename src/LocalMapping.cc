@@ -217,8 +217,8 @@ void LocalMapping::MapPointCulling()
         {
             // Step 2.2：跟踪到该地图点的帧数相比预计可观测到该地图点的帧数的比例小于25%，从地图中删除
             // (mnFound/mnVisible） < 25%
-            // mnFound ：地图点被多少帧（包括普通帧）看到，次数越多越好
-            // mnVisible：地图点应该被看到的次数
+            // mnFound ：地图点被LocalMap中多少帧（包括普通帧）看到，次数越多越好
+            // mnVisible：地图点应该被看到的次数 SearchLocalPoints 里累加
             // (mnFound/mnVisible）：对于大FOV镜头这个比例会高，对于窄FOV镜头这个比例会低
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
