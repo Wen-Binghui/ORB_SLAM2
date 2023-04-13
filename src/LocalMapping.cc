@@ -190,30 +190,49 @@ void LocalMapping::ProcessNewKeyFrame()
     mpMap->AddKeyFrame(mpCurrentKeyFrame);
 }
 
-void LocalMapping::MapPointCulling() {
+void LocalMapping::MapPointCulling()
+{
     // Check Recent Added MapPoints
     list<MapPoint*>::iterator lit = mlpRecentAddedMapPoints.begin();
     const unsigned long int nCurrentKFid = mpCurrentKeyFrame->mnId;
-
+ 
+    // Step 1：根据相机类型设置不同的观测阈值
     int nThObs;
-    if (mbMonocular)
+    if(mbMonocular)
         nThObs = 2;
     else
         nThObs = 3;
     const int cnThObs = nThObs;
-
-    while (lit != mlpRecentAddedMapPoints.end()) {
+	
+	// Step 2：遍历检查新添加的地图点
+    while(lit!=mlpRecentAddedMapPoints.end())
+    {
         MapPoint* pMP = *lit;
-        if (pMP->isBad()) {
+        if(pMP->isBad())
+        {
+            // Step 2.1：已经是坏点的地图点仅从队列中删除
             lit = mlpRecentAddedMapPoints.erase(lit);
-        } else if (pMP->GetFoundRatio() < 0.25f) {
+        }
+        else if(pMP->GetFoundRatio()<0.25f)
+        {
+            // Step 2.2：跟踪到该地图点的帧数相比预计可观测到该地图点的帧数的比例小于25%，从地图中删除
+            // (mnFound/mnVisible） < 25%
+            // mnFound ：地图点被多少帧（包括普通帧）看到，次数越多越好
+            // mnVisible：地图点应该被看到的次数
+            // (mnFound/mnVisible）：对于大FOV镜头这个比例会高，对于窄FOV镜头这个比例会低
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
-        } else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 2 &&
-                   pMP->Observations() <= cnThObs) {
+        }
+        else if(((int)nCurrentKFid-(int)pMP->mnFirstKFid)>=2 && pMP->Observations()<=cnThObs)
+        {
+            // Step 2.3：从该点建立开始，到现在已经过了不小于2个关键帧
+            // 但是观测到该点的相机数却不超过阈值cnThObs，从地图中删除
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
-        } else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 3)
+        }
+        else if(((int)nCurrentKFid-(int)pMP->mnFirstKFid)>=3)
+            // Step 2.4：从建立该点开始，已经过了3个关键帧而没有被剔除，则认为是质量高的点
+            // 因此没有SetBadFlag()，仅从队列中删除
             lit = mlpRecentAddedMapPoints.erase(lit);
         else
             lit++;
