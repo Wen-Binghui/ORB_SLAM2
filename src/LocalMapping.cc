@@ -681,64 +681,100 @@ bool LocalMapping::SetNotStop(bool flag) {
 
 void LocalMapping::InterruptBA() { mbAbortBA = true; }
 
-void LocalMapping::KeyFrameCulling() {
-    // Check redundant keyframes (only local keyframes)
-    // A keyframe is considered redundant if the 90% of the MapPoints it sees,
-    // are seen in at least other 3 keyframes (in the same or finer scale) We
-    // only consider close stereo points
-    vector<KeyFrame*> vpLocalKeyFrames =
-        mpCurrentKeyFrame->GetVectorCovisibleKeyFrames();
-
-    for (vector<KeyFrame*>::iterator vit = vpLocalKeyFrames.begin(),
-                                     vend = vpLocalKeyFrames.end();
-         vit != vend; vit++) {
+/**
+ * @brief 检测当前关键帧在共视图中的关键帧，根据地图点在共视图中的冗余程度剔除该共视关键帧
+ * 冗余关键帧的判定：90%以上的地图点能被其他关键帧（至少3个）观测到
+ */
+void LocalMapping::KeyFrameCulling()
+{
+ 
+    // 该函数里变量层层深入，这里列一下：
+    // mpCurrentKeyFrame：当前关键帧，本程序就是判断它是否需要删除
+    // pKF： mpCurrentKeyFrame的某一个共视关键帧
+    // vpMapPoints：pKF对应的所有地图点
+    // pMP：vpMapPoints中的某个地图点
+    // observations：所有能观测到pMP的关键帧
+    // pKFi：observations中的某个关键帧
+    // scaleLeveli：pKFi的金字塔尺度
+    // scaleLevel：pKF的金字塔尺度
+ 
+    // Step 1：根据共视图提取当前关键帧的所有共视关键帧
+    vector<KeyFrame*> vpLocalKeyFrames = mpCurrentKeyFrame->GetVectorCovisibleKeyFrames();
+ 
+    // 对所有的共视关键帧进行遍历
+    for(vector<KeyFrame*>::iterator vit=vpLocalKeyFrames.begin(), vend=vpLocalKeyFrames.end(); vit!=vend; vit++)
+    {
         KeyFrame* pKF = *vit;
-        if (pKF->mnId == 0) continue;
+        // 最开始的第1个关键帧不能删除，跳过
+        if(pKF->mnId==0)
+            continue;
+        // Step 2：提取每个共视关键帧的地图点
         const vector<MapPoint*> vpMapPoints = pKF->GetMapPointMatches();
-
-        int nObs = 3;
-        const int thObs = nObs;
-        int nRedundantObservations = 0;
-        int nMPs = 0;
-        for (size_t i = 0, iend = vpMapPoints.size(); i < iend; i++) {
+ 
+        // 记录某个点被观测次数，后面并未使用
+        int nObs = 3;                     
+        // 观测次数阈值，默认为3
+        const int thObs=nObs;               
+        // 记录冗余观测点的数目
+        int nRedundantObservations=0;     
+                                                                                      
+        int nMPs=0;            
+ 
+        // Step 3：遍历该共视关键帧的所有地图点，其中能被其它至少3个关键帧观测到的地图点为冗余地图点
+        for(size_t i=0, iend=vpMapPoints.size(); i<iend; i++)
+        {
             MapPoint* pMP = vpMapPoints[i];
-            if (pMP) {
-                if (!pMP->isBad()) {
-                    if (!mbMonocular) {
-                        if (pKF->mvDepth[i] > pKF->mThDepth ||
-                            pKF->mvDepth[i] < 0)
+            if(pMP)
+            {
+                if(!pMP->isBad())
+                {
+                    if(!mbMonocular)
+                    {
+                        // 对于双目或RGB-D，仅考虑近处（不超过基线的40倍 ）的地图点
+                        if(pKF->mvDepth[i]>pKF->mThDepth || pKF->mvDepth[i]<0)
                             continue;
                     }
-
+ 
                     nMPs++;
-                    if (pMP->Observations() > thObs) {
-                        const int& scaleLevel = pKF->mvKeysUn[i].octave;
-                        const map<KeyFrame*, size_t> observations =
-                            pMP->GetObservations();
-                        int nObs = 0;
-                        for (map<KeyFrame*, size_t>::const_iterator
-                                 mit = observations.begin(),
-                                 mend = observations.end();
-                             mit != mend; mit++) {
+                    // pMP->Observations() 是观测到该地图点的相机总数目（单目1，双目2）
+                    if(pMP->Observations()>thObs)
+                    {
+                        const int &scaleLevel = pKF->mvKeysUn[i].octave;
+                        // Observation存储的是可以看到该地图点的所有关键帧的集合
+                        const map<KeyFrame*, size_t> observations = pMP->GetObservations();
+ 
+                        int nObs=0;
+                        // 遍历观测到该地图点的关键帧
+                        for(map<KeyFrame*, size_t>::const_iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
+                        {
                             KeyFrame* pKFi = mit->first;
-                            if (pKFi == pKF) continue;
-                            const int& scaleLeveli =
-                                pKFi->mvKeysUn[mit->second].octave;
-
-                            if (scaleLeveli <= scaleLevel + 1) {
+                            if(pKFi==pKF)
+                                continue;
+                            const int &scaleLeveli = pKFi->mvKeysUn[mit->second].octave;
+ 
+                            // 尺度约束：为什么pKF 尺度+1 要大于等于 pKFi 尺度？
+                            // 回答：因为同样或更低金字塔层级的地图点更准确
+                            if(scaleLeveli<=scaleLevel+1) // 别的帧更准
+                            {
                                 nObs++;
-                                if (nObs >= thObs) break;
+                                // 已经找到3个满足条件的关键帧，就停止不找了
+                                if(nObs>=thObs)
+                                    break;
                             }
                         }
-                        if (nObs >= thObs) {
+                        // 地图点至少被3个关键帧观测到，就记录为冗余点，更新冗余点计数数目
+                        if(nObs>=thObs)
+                        {
                             nRedundantObservations++;
                         }
                     }
                 }
             }
         }
-
-        if (nRedundantObservations > 0.9 * nMPs) pKF->SetBadFlag();
+ 
+        // Step 4：如果该关键帧90%以上的有效地图点被判断为冗余的，则认为该关键帧是冗余的，需要删除该关键帧
+        if(nRedundantObservations>0.9*nMPs)
+            pKF->SetBadFlag();
     }
 }
 
