@@ -87,7 +87,7 @@ void LocalMapping::Run()
             {
                 // Local BA
                 if(mpMap->KeyFramesInMap()>2)
-                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
+                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame, &mbAbortBA, mpMap);
  
                 // Check redundant local Keyframes
                 // 检测并剔除当前帧相邻的关键帧中冗余的关键帧
@@ -506,7 +506,7 @@ void LocalMapping::SearchInNeighbors()
         // 没有和当前帧进行过融合的操作
         if(pKFi->isBad() || pKFi->mnFuseTargetForKF == mpCurrentKeyFrame->mnId)
             continue;
-        // 加入一级相邻关键帧    
+        // 加入一级相邻关键帧
         vpTargetKFs.push_back(pKFi);
         // 标记已经加入
         pKFi->mnFuseTargetForKF = mpCurrentKeyFrame->mnId;
@@ -540,7 +540,7 @@ void LocalMapping::SearchInNeighbors()
         // 1.如果地图点能匹配关键帧的特征点，并且该点有对应的地图点，那么选择观测数目多的替换两个地图点
         // 2.如果地图点能匹配关键帧的特征点，并且该点没有对应的地图点，那么为该点添加该投影地图点
         // 注意这个时候对地图点融合的操作是立即生效的
-        matcher.Fuse(pKFi,vpMapPointMatches);
+        matcher.Fuse(pKFi, vpMapPointMatches);
     }
  
     // Search matches by projection from target KFs in current KF

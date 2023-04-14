@@ -856,6 +856,14 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
 
 int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const float th)
 {
+    // 将参数一的关键帧的地图点与参数二的地图点集合进行融合
+    """
+        将地图点投影到关键帧中进行匹配和融合；融合策略如下：
+        1.如果地图点能匹配关键帧的特征点，并且该点有对应的地图点，那么选择观测数目多的替换两个地图点
+        2.如果地图点能匹配关键帧的特征点，并且该点没有对应的地图点，那么为该点添加该投影地图点
+    
+    """
+
     cv::Mat Rcw = pKF->GetRotation();
     cv::Mat tcw = pKF->GetTranslation();
 
@@ -918,7 +926,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
 
         int nPredictedLevel = pMP->PredictScale(dist3D,pKF);
 
-        // Search in a radius
+        // Search in a radius 只在一个半径内匹配
         const float radius = th*pKF->mvScaleFactors[nPredictedLevel];
 
         const vector<size_t> vIndices = pKF->GetFeaturesInArea(u,v,radius);
@@ -973,6 +981,8 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
 
             const int dist = DescriptorDistance(dMP,dKF);
 
+
+            //! 最后我们记录和投影点的描述子距离最小的pKF帧的最小汉明距离bestDist和特征点索引bestIdx
             if(dist<bestDist)
             {
                 bestDist = dist;
@@ -984,7 +994,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
         if(bestDist<=TH_LOW)
         {
             MapPoint* pMPinKF = pKF->GetMapPoint(bestIdx);
-            if(pMPinKF)
+            if(pMPinKF) // 如果最佳匹配点有对应有效地图点，选择被观测次数最多的那个替换
             {
                 if(!pMPinKF->isBad())
                 {
@@ -995,9 +1005,9 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
                 }
             }
             else
-            {
-                pMP->AddObservation(pKF,bestIdx);
-                pKF->AddMapPoint(pMP,bestIdx);
+            {   // 如果最佳匹配点没有对应地图点，添加观测信息
+                pMP->AddObservation(pKF, bestIdx);
+                pKF->AddMapPoint(pMP, bestIdx);
             }
             nFused++;
         }
